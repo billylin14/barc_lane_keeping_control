@@ -2,7 +2,6 @@
 
 # Your import statements here
 import numpy as np
-
 from mpclab_common.pytypes import VehicleState, VehiclePrediction
 from mpclab_common.track import get_track
 from mpclab_controllers.abstract_controller import AbstractController
@@ -55,54 +54,39 @@ class ProjectController(AbstractController):
 
     # This method will be called once every time step, make sure to modify the vehicle_state
     # object in place with your computed control actions for acceleration (m/s^2) and steering (rad)
+        
     def step(self, vehicle_state: VehicleState):
+        #CHANGED BY VINCENT :):):):):)):)):):)
         t = vehicle_state.t - self.t0
-
+        k = self.track.get_curvature(s)
         # Example transformation from global to Frenet frame coordinates
         s, e_y, e_psi = self.track.global_to_local((vehicle_state.x.x, vehicle_state.x.y, vehicle_state.e.psi))
-                
+        
         # Modify the vehicle state object in place to pass control inputs to the ROS node
-        t = vehicle_state.t - self.t0
-        k = 1/s
-        #beta_ss = 0.13*k - 0.13*2.2187*k*(vehicle_state.v.v_long^2/2*2.28*0.26)
-        # vehicle configs
-        lr = 0.13
-        lf = 0.13
-        m = 2.2187
-        Cf = 2.28
-        Cr = 2.28
-        L = lr + lf
-        g = 9.81
-        W = m*g
-        Wf = W*lr/2/L
-        Wr = W*lf/2/L
-        K_us = Wf/Cf-Wr/Cr # this is 0
-        r_eff = 0.1 # wheel_dist_center_front
-        mu = 0.9
-        pacejka_b_front = 5.0
-        pacejka_c_front = 2.28
-        pacejka_b_rear = 5.0
-        pacejka_c_rear = 2.28
-        # state values
-        vx = vehicle_state.v.v_long
-        kappa = self.track.get_curvature(s)
-        beta_ss = lr*kappa-(lf*m*vx**2)/(2*Cr*L)*kappa
-        delta_ff = L*kappa+K_us*g*vx**2*kappa
-        # gains
-        kp = 0.5
-        # inputs
-        # traction control
-        # Fx_f = 
-        # Fx_r = 
+        #P Control
+        kp = 1 # p-gain
+        x_la = 1 # lookahead term
 
-        accel = -1*(vx - 3.3)
-        # lane keeping lateral control
-        # beta_ss = 0
-        x_LA = 5
-        # self.print_method(f'deltaFF: {delta_ff}')
-        steer = -kp*(e_y + x_LA*(e_psi+beta_ss)) #+ delta_ff
+        g = 9.81   #gravity
+        l_f = l_r = 0.13 #left and right axle to CoM
+        C_f = C_r = 2.28    #cornering stiffness
+        a_y = vehicle_state.a.a_tran 
+        W_f = (m*l_r)/(2*L) 
+        W_r = (m*l_f)/(2*L)
+        R = 1/k     
+        L = 0.37 # vehicle length in (m)
+        m = 2.2187 # mass in (kg) 
+        Kus = W_f/C_f - W_r/C_r # Understeer gradient
+        ff = L/R + Kus*(a_y/g)
+        beta_ss = l_r*k - k*((l_f*m*vehicle_state.v.v_long**2)/(2*C_r*L))
+
+    
+        accel = -1*(vehicle_state.v.v_long - 3)
+        steer = -0.85*(e_y + x_la*(e_psi+beta_ss)) + ff
+
         vehicle_state.u.u_a = accel
         vehicle_state.u.u_steer = steer
+
 
         # Example of printing
         self.print_method(f's: {s} | e_y: {e_y} | e_psi: {e_psi}')
